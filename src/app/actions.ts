@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
+import { fetchFavicon } from "@/lib/favicon";
 
 export async function registerUser(formData: FormData) {
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
@@ -43,7 +44,7 @@ export async function submitTool(formData: FormData) {
 
   const slug = slugify(name) + "-" + Date.now().toString(36);
 
-  await prisma.tool.create({
+  const tool = await prisma.tool.create({
     data: {
       slug,
       name,
@@ -60,7 +61,14 @@ export async function submitTool(formData: FormData) {
     },
   });
 
+  // Best-effort favicon fetch — never blocks or fails the submission.
+  const logo = await fetchFavicon(websiteUrl).catch(() => null);
+  if (logo) {
+    await prisma.tool.update({ where: { id: tool.id }, data: { logo } });
+  }
+
   revalidatePath("/admin");
+  revalidatePath("/tools");
   return { ok: true };
 }
 
