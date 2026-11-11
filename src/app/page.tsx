@@ -94,29 +94,6 @@ export default async function HomePage() {
         {oss.map((t) => <ToolCard key={t.slug} tool={t} />)}
       </Section>
 
-      {/* Models */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">AI model directory</h2>
-          <Link href="/models" className={buttonVariants({ variant: "ghost" })}>
-            View all <ArrowRight className="ml-1 h-4 w-4" />
-          </Link>
-        </div>
-        <p className="text-muted-foreground">
-          Explore models from OpenAI, Anthropic, Google, Meta, Qwen, DeepSeek, Mistral, and more.
-        </p>
-      </section>
-
-      {/* Resources */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Developer resources</h2>
-          <Link href="/resources" className={buttonVariants({ variant: "ghost" })}>
-            View all <ArrowRight className="ml-1 h-4 w-4" />
-          </Link>
-        </div>
-      </section>
-
       {/* Community / submit CTA */}
       <AnimatedMarqueeHero
         tagline="Open source & community driven"
