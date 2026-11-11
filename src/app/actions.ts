@@ -7,6 +7,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { fetchFavicon } from "@/lib/favicon";
+import { generateToolDraft as aiGenerateToolDraft } from "@/lib/ai";
+import { getStripe, paymentEnabled, submissionPriceCents } from "@/lib/stripe";
 
 export async function registerUser(formData: FormData) {
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
@@ -56,7 +58,7 @@ export async function submitTool(formData: FormData) {
       isOpenSource,
       tags,
       platforms: [],
-      status: "PENDING",
+      status: paymentEnabled() ? "PENDING_PAYMENT" : "PENDING",
       submittedById: session.user.id,
     },
   });
@@ -67,9 +69,72 @@ export async function submitTool(formData: FormData) {
     await prisma.tool.update({ where: { id: tool.id }, data: { logo } });
   }
 
+  if (tool.status === "PENDING_PAYMENT") {
+    const stripe = getStripe();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    if (!stripe) {
+      // Misconfigured payment: fall back to the normal review flow.
+      await prisma.tool.update({ where: { id: tool.id }, data: { status: "PENDING" } });
+    } else {
+      const checkout = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: session.user.email ?? undefined,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: submissionPriceCents(),
+              product_data: { name: "AIAtlas tool submission review", description: `One-time review fee for "${name}"` },
+            },
+          },
+        ],
+        metadata: { toolId: tool.id },
+        success_url: `${appUrl}/submit/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/submit?canceled=1`,
+      });
+      if (checkout.url) {
+        await prisma.tool.update({ where: { id: tool.id }, data: { stripeSessionId: checkout.id } });
+        return { ok: true, checkoutUrl: checkout.url };
+      }
+      // No checkout URL: fall back to the normal review flow.
+      await prisma.tool.update({ where: { id: tool.id }, data: { status: "PENDING" } });
+    }
+  }
+
   revalidatePath("/admin");
   revalidatePath("/tools");
   return { ok: true };
+}
+
+/** AI-generated draft for the submit form (OpenRouter). */
+export async function generateToolDraft(websiteUrl: string, categoryNames: string[]) {
+  try {
+    const draft = await aiGenerateToolDraft(websiteUrl, categoryNames);
+    return { ok: true as const, ...draft };
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : "Generation failed." };
+  }
+}
+
+/** Mark a tool as paid after checkout completes. Called by the success page and the webhook. */
+export async function markToolPaidBySession(sessionId: string) {
+  const stripe = getStripe();
+  if (!stripe || !sessionId) return { ok: false, error: "Payment verification unavailable." };
+  const checkout = await stripe.checkout.sessions.retrieve(sessionId);
+  if (checkout.payment_status !== "paid" || !checkout.metadata?.toolId) {
+    return { ok: false, error: "Payment not completed." };
+  }
+  const tool = await prisma.tool.findUnique({ where: { id: checkout.metadata.toolId } });
+  if (!tool) return { ok: false, error: "Tool not found." };
+  if (tool.status === "PENDING_PAYMENT") {
+    await prisma.tool.update({
+      where: { id: tool.id },
+      data: { status: "PENDING", paidAt: new Date(), stripeSessionId: checkout.id },
+    });
+    revalidatePath("/admin");
+  }
+  return { ok: true as const, toolSlug: tool.slug };
 }
 
 export async function toggleBookmark(toolId: string) {

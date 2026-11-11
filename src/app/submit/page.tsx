@@ -1,10 +1,12 @@
 import { getCategories } from "@/lib/queries";
 import { SubmitForm } from "@/components/submit-form";
+import { paymentEnabled, submissionPriceCents, stripeMode } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 export default async function SubmitPage() {
   const categories = await getCategories();
+  const paid = paymentEnabled();
   return (
     <div className="container mx-auto max-w-3xl px-4 py-10 lg:py-16">
       <div className="rounded-2xl border border-black/20 bg-card px-6 py-12 sm:px-10 dark:border-white/10 dark:bg-[#0a0a0a] lg:px-14">
@@ -15,8 +17,17 @@ export default async function SubmitPage() {
           The favicon is fetched automatically from the website as the logo.
         </p>
         <div className="mt-10">
-          <SubmitForm categories={categories.map((c: any) => ({ id: c.id, name: c.name, slug: c.slug }))} />
+          <SubmitForm
+            categories={categories.map((c: any) => ({ id: c.id, name: c.name, slug: c.slug }))}
+            paymentEnabled={paid}
+            priceCents={submissionPriceCents()}
+          />
         </div>
+        {paid ? (
+          <p className="mt-6 text-xs text-black/40 dark:text-white/40">
+            Payments run through Stripe in {stripeMode() === "live" ? "live" : "sandbox (test)"} mode.
+          </p>
+        ) : null}
       </div>
     </div>
   );

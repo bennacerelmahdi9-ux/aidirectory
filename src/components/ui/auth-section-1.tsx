@@ -137,6 +137,8 @@ export function FieldBox({
   required,
   minLength,
   autoComplete,
+  value: valueProp,
+  onValueChange,
 }: {
   label: string;
   name: string;
@@ -144,9 +146,14 @@ export function FieldBox({
   required?: boolean;
   minLength?: number;
   autoComplete?: string;
+  /** Controlled value — the box clears when it changes externally. */
+  value?: string;
+  onValueChange?: (value: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  const [internal, setInternal] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const value = valueProp !== undefined ? valueProp : internal;
+  const shownLabel = !isEditing || !value;
 
   return (
     <label className="flex h-14 items-center justify-between gap-4 rounded-[10px] border border-black/25 bg-card px-5 text-lg leading-none transition-colors focus-within:border-black/60 dark:border-white/15 dark:bg-white/5 dark:focus-within:border-white/40 xl:text-xl">
@@ -162,12 +169,13 @@ export function FieldBox({
           if (!isEditing) setIsEditing(true);
         }}
         onChange={(event) => {
-          setValue(event.target.value);
+          setInternal(event.target.value);
+          onValueChange?.(event.target.value);
           setIsEditing(true);
         }}
         className="min-w-0 flex-1 truncate bg-transparent text-black/70 outline-none dark:text-white/80"
       />
-      {!isEditing && (
+      {shownLabel && (
         <span className="shrink-0 text-black dark:text-white">{label}</span>
       )}
     </label>
@@ -180,14 +188,20 @@ export function FieldArea({
   name,
   required,
   rows = 4,
+  value: valueProp,
+  onValueChange,
 }: {
   label: string;
   name: string;
   required?: boolean;
   rows?: number;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  const [internal, setInternal] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const value = valueProp !== undefined ? valueProp : internal;
+  const shownLabel = !isEditing || !value;
 
   return (
     <label className="flex min-h-28 items-stretch justify-between gap-4 rounded-[10px] border border-black/25 bg-card px-5 py-4 text-lg leading-snug transition-colors focus-within:border-black/60 dark:border-white/15 dark:bg-white/5 dark:focus-within:border-white/40 xl:text-xl">
@@ -201,12 +215,13 @@ export function FieldArea({
           if (!isEditing) setIsEditing(true);
         }}
         onChange={(event) => {
-          setValue(event.target.value);
+          setInternal(event.target.value);
+          onValueChange?.(event.target.value);
           setIsEditing(true);
         }}
         className="min-w-0 flex-1 resize-none bg-transparent text-black/70 outline-none dark:text-white/80"
       />
-      {!isEditing && (
+      {shownLabel && (
         <span className="shrink-0 text-black dark:text-white">{label}</span>
       )}
     </label>
