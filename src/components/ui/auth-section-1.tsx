@@ -174,6 +174,45 @@ export function FieldBox({
   );
 }
 
+/** Multiline boxed field, same interaction as FieldBox. */
+export function FieldArea({
+  label,
+  name,
+  required,
+  rows = 4,
+}: {
+  label: string;
+  name: string;
+  required?: boolean;
+  rows?: number;
+}) {
+  const [value, setValue] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  return (
+    <label className="flex min-h-28 items-stretch justify-between gap-4 rounded-[10px] border border-black/25 bg-card px-5 py-4 text-lg leading-snug transition-colors focus-within:border-black/60 dark:border-white/15 dark:bg-white/5 dark:focus-within:border-white/40 xl:text-xl">
+      <textarea
+        name={name}
+        required={required}
+        rows={rows}
+        aria-label={label}
+        value={value}
+        onFocus={() => {
+          if (!isEditing) setIsEditing(true);
+        }}
+        onChange={(event) => {
+          setValue(event.target.value);
+          setIsEditing(true);
+        }}
+        className="min-w-0 flex-1 resize-none bg-transparent text-black/70 outline-none dark:text-white/80"
+      />
+      {!isEditing && (
+        <span className="shrink-0 text-black dark:text-white">{label}</span>
+      )}
+    </label>
+  );
+}
+
 export function CheckboxLine({ children }: { children: ReactNode }) {
   return (
     <label className="flex items-start gap-3">
