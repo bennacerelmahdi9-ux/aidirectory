@@ -102,6 +102,15 @@ export async function getOpenSourceTools(limit = 8) {
   });
 }
 
+/** Every approved tool, slim fields — used for the homepage marquee. */
+export async function getAllApprovedTools() {
+  return prisma.tool.findMany({
+    where: { status: "APPROVED" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, slug: true, name: true, logo: true },
+  });
+}
+
 export async function getModels(provider?: string) {
   const where = provider ? { provider } : {};
   return prisma.aIModel.findMany({ where, orderBy: [{ provider: "asc" }, { name: "asc" }] });

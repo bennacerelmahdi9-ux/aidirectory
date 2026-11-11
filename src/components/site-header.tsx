@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,18 +11,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Moon, Sun, Search, Menu } from "lucide-react";
+import { Moon, Sun, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export function SiteHeader() {
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
-  const [query, setQuery] = useState("");
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur">
       <div className="container mx-auto flex h-16 items-center gap-4 px-4">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -31,22 +28,6 @@ export function SiteHeader() {
           </span>
           AIAtlas
         </Link>
-
-        <form
-          action="/tools"
-          className="hidden flex-1 items-center gap-2 md:flex"
-        >
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              name="q"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search AI tools, models, APIs..."
-              className="pl-9"
-            />
-          </div>
-        </form>
 
         <nav className="hidden items-center gap-1 md:flex">
           <Link href="/tools" className={buttonVariants({ variant: "ghost", size: "sm" })}>Tools</Link>
@@ -128,6 +109,10 @@ export function SiteHeader() {
           </Sheet>
         </div>
       </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border/80 to-transparent"
+      />
     </header>
   );
 }
