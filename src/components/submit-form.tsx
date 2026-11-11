@@ -4,12 +4,13 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import {
   FieldBox,
-  FieldArea,
   CheckboxLine,
   SubmitButton,
 } from "@/components/ui/auth-section-1";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { submitTool, generateToolDraft } from "@/app/actions";
+import { stripHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -36,7 +37,7 @@ export function SubmitForm({
   // Controlled values so the AI draft can fill fields programmatically.
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [descriptionHtml, setDescriptionHtml] = useState("");
   const [tags, setTags] = useState("");
 
   async function onGenerate() {
@@ -52,7 +53,7 @@ export function SubmitForm({
       return;
     }
     setName(res.name);
-    setDescription(res.description);
+    setDescriptionHtml(res.description);
     setTags(res.tags.join(", "));
     const match = categories.find(
       (c) => c.name.toLowerCase() === res.category.toLowerCase().trim()
@@ -65,9 +66,16 @@ export function SubmitForm({
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!stripHtml(descriptionHtml)) {
+      toast.error("Add a description first.");
+      return;
+    }
     const fd = new FormData(e.currentTarget);
     fd.set("categoryId", categoryId);
     fd.set("pricingModel", pricing);
+    // Short plain-text summary for cards/search + rich HTML for the detail page.
+    fd.set("description", stripHtml(descriptionHtml).slice(0, 300));
+    fd.set("longDescription", descriptionHtml);
     setPending(true);
     const res = await submitTool(fd);
     if ("checkoutUrl" in res && res.checkoutUrl) {
@@ -103,14 +111,14 @@ export function SubmitForm({
         Fills name, description, tags, category and pricing from the website.
       </p>
 
-      <FieldArea
-        label="Description"
-        name="description"
-        required
-        rows={4}
-        value={description}
-        onValueChange={setDescription}
-      />
+      <div>
+        <p className="mb-1.5 px-1 text-sm font-medium">Description</p>
+        <RichTextEditor
+          name="longDescription"
+          value={descriptionHtml}
+          onChange={setDescriptionHtml}
+        />
+      </div>
 
       <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
         <SelectTrigger className={boxTrigger}>

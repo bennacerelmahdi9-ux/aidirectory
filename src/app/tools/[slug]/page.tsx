@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { BookmarkButton } from "@/components/bookmark-button";
 import { ReviewForm } from "@/components/review-form";
 import { Star } from "lucide-react";
+import { looksLikeHtml } from "@/lib/utils";
 import type { Metadata } from "next";
 
 type Params = Promise<{ slug: string }>;
@@ -94,7 +95,14 @@ export default async function ToolDetailPage({ params }: { params: Params }) {
             <CardContent>
               <p className="text-muted-foreground">{tool.description}</p>
               {tool.longDescription && (
-                <p className="mt-4 text-muted-foreground whitespace-pre-line">{tool.longDescription}</p>
+                looksLikeHtml(tool.longDescription) ? (
+                  <div
+                    className="rich-editor mt-4 text-muted-foreground [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-5 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_a]:text-primary [&_a]:underline"
+                    dangerouslySetInnerHTML={{ __html: tool.longDescription }}
+                  />
+                ) : (
+                  <p className="mt-4 text-muted-foreground whitespace-pre-line">{tool.longDescription}</p>
+                )
               )}
               {tool.tags.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-1.5">

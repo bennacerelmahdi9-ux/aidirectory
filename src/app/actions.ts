@@ -9,6 +9,8 @@ import { slugify } from "@/lib/slug";
 import { fetchFavicon } from "@/lib/favicon";
 import { generateToolDraft as aiGenerateToolDraft } from "@/lib/ai";
 import { getStripe, paymentEnabled, submissionPriceCents } from "@/lib/stripe";
+import DOMPurify from "isomorphic-dompurify";
+import { stripHtml, looksLikeHtml } from "@/lib/utils";
 
 export async function registerUser(formData: FormData) {
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
@@ -44,13 +46,19 @@ export async function submitTool(formData: FormData) {
     return { ok: false, error: "Missing required fields." };
   }
 
+  // Rich description: sanitize before it ever touches the database.
+  const rawLong = String(formData.get("longDescription") ?? "");
+  const longDescription = looksLikeHtml(rawLong) ? DOMPurify.sanitize(rawLong) : null;
+  const plainDescription = stripHtml(description || rawLong).slice(0, 300);
+
   const slug = slugify(name) + "-" + Date.now().toString(36);
 
   const tool = await prisma.tool.create({
     data: {
       slug,
       name,
-      description,
+      description: plainDescription,
+      longDescription,
       websiteUrl,
       categoryId,
       pricingModel: pricingModel as never,
