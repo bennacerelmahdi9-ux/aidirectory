@@ -8,7 +8,8 @@ import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { fetchFavicon } from "@/lib/favicon";
 import { generateToolDraft as aiGenerateToolDraft } from "@/lib/ai";
-import { getStripe, paymentEnabled, submissionPriceCents } from "@/lib/stripe";
+import { getStripe, getStripeConfig } from "@/lib/stripe";
+import { SETTING_KEYS, setSettings } from "@/lib/settings";
 import DOMPurify from "isomorphic-dompurify";
 import { stripHtml, looksLikeHtml } from "@/lib/utils";
 
@@ -53,6 +54,8 @@ export async function submitTool(formData: FormData) {
 
   const slug = slugify(name) + "-" + Date.now().toString(36);
 
+  const pay = await getStripeConfig();
+
   const tool = await prisma.tool.create({
     data: {
       slug,
@@ -66,7 +69,7 @@ export async function submitTool(formData: FormData) {
       isOpenSource,
       tags,
       platforms: [],
-      status: paymentEnabled() ? "PENDING_PAYMENT" : "PENDING",
+      status: pay.enabled ? "PENDING_PAYMENT" : "PENDING",
       submittedById: session.user.id,
     },
   });
@@ -78,7 +81,7 @@ export async function submitTool(formData: FormData) {
   }
 
   if (tool.status === "PENDING_PAYMENT") {
-    const stripe = getStripe();
+    const stripe = pay.secretKey ? await getStripe() : null;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     if (!stripe) {
       // Misconfigured payment: fall back to the normal review flow.
@@ -92,7 +95,7 @@ export async function submitTool(formData: FormData) {
             quantity: 1,
             price_data: {
               currency: "usd",
-              unit_amount: submissionPriceCents(),
+              unit_amount: pay.priceCents,
               product_data: { name: "AIAtlas tool submission review", description: `One-time review fee for "${name}"` },
             },
           },
@@ -127,7 +130,7 @@ export async function generateToolDraft(websiteUrl: string, categoryNames: strin
 
 /** Mark a tool as paid after checkout completes. Called by the success page and the webhook. */
 export async function markToolPaidBySession(sessionId: string) {
-  const stripe = getStripe();
+  const stripe = await getStripe();
   if (!stripe || !sessionId) return { ok: false, error: "Payment verification unavailable." };
   const checkout = await stripe.checkout.sessions.retrieve(sessionId);
   if (checkout.payment_status !== "paid" || !checkout.metadata?.toolId) {
@@ -233,5 +236,66 @@ export async function updateUserRole(userId: string, role: "USER" | "MODERATOR" 
   if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
   await prisma.user.update({ where: { id: userId }, data: { role } });
   revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function deleteUser(userId: string) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
+  if (session.user.id === userId) return { ok: false, error: "You cannot delete your own account." };
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return { ok: false, error: "User not found." };
+
+  // Remove dependent records first (reviews have no cascade on user).
+  await prisma.$transaction([
+    prisma.review.deleteMany({ where: { userId } }),
+    prisma.bookmark.deleteMany({ where: { userId } }),
+    prisma.report.deleteMany({ where: { userId } }),
+    prisma.account.deleteMany({ where: { userId } }),
+    prisma.session.deleteMany({ where: { userId } }),
+  ]);
+  await prisma.user.delete({ where: { id: userId } });
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/** Save admin panel settings (pricing, payment, Stripe, OpenRouter). ADMIN only. */
+export async function updateSettings(formData: FormData) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
+
+  const entries: Record<string, string> = {};
+
+  const paymentEnabled = formData.get("paymentEnabled") === "on";
+  entries[SETTING_KEYS.paymentEnabled] = paymentEnabled ? "true" : "false";
+
+  const priceDollars = Number(formData.get("priceDollars"));
+  if (Number.isFinite(priceDollars) && priceDollars > 0) {
+    entries[SETTING_KEYS.priceCents] = String(Math.round(priceDollars * 100));
+  }
+
+  const stripeMode = String(formData.get("stripeMode") ?? "");
+  if (stripeMode === "test" || stripeMode === "live") entries[SETTING_KEYS.stripeMode] = stripeMode;
+
+  // Secrets: only overwrite when a new value is provided (masked otherwise).
+  const secretFields: [string, string][] = [
+    [SETTING_KEYS.stripeSecretTest, "stripeSecretTest"],
+    [SETTING_KEYS.stripeSecretLive, "stripeSecretLive"],
+    [SETTING_KEYS.stripeWebhookTest, "stripeWebhookTest"],
+    [SETTING_KEYS.stripeWebhookLive, "stripeWebhookLive"],
+    [SETTING_KEYS.openrouterApiKey, "openrouterApiKey"],
+  ];
+  for (const [key, field] of secretFields) {
+    const value = String(formData.get(field) ?? "").trim();
+    if (value) entries[key] = value;
+  }
+
+  const openrouterModel = String(formData.get("openrouterModel") ?? "").trim();
+  if (openrouterModel) entries[SETTING_KEYS.openrouterModel] = openrouterModel;
+
+  await setSettings(entries);
+  revalidatePath("/admin");
+  revalidatePath("/submit");
   return { ok: true };
 }

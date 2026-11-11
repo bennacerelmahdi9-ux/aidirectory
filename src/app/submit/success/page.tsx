@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { markToolPaidBySession } from "@/app/actions";
-import { paymentEnabled } from "@/lib/stripe";
+import { getStripeConfig } from "@/lib/stripe";
 import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,8 @@ export default async function SubmitSuccessPage({
   // sandbox without a webhook listener.
   let paid = false;
   let toolSlug: string | undefined;
-  if (paymentEnabled() && sessionId) {
+  const config = await getStripeConfig();
+  if (config.enabled && sessionId) {
     const res = await markToolPaidBySession(sessionId).catch(() => ({ ok: false as const, error: "Verification failed." }));
     paid = res.ok;
     if (res.ok) toolSlug = res.toolSlug;

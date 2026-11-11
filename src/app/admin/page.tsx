@@ -1,11 +1,21 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
+import { getStripeConfig } from "@/lib/stripe";
+import { SETTING_KEYS, getSettings, maskSecret } from "@/lib/settings";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { approveTool, rejectTool, deleteTool, toggleFeatured, updateUserRole } from "@/app/actions";
+import { AdminSettings } from "@/components/admin-settings";
+import {
+  approveTool,
+  rejectTool,
+  deleteTool,
+  toggleFeatured,
+  updateUserRole,
+  deleteUser,
+} from "@/app/actions";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,33 +24,100 @@ export default async function AdminPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (session.user.role !== "ADMIN" && session.user.role !== "MODERATOR") redirect("/");
+  const isAdmin = session.user.role === "ADMIN";
 
-  const [tools, users, reviews, reports] = await Promise.all([
-    prisma.tool.findMany({ orderBy: { createdAt: "desc" }, include: { category: true, _count: { select: { reviews: true } } } }),
+  const [
+    tools,
+    users,
+    reviews,
+    reports,
+    paidCount,
+    stripe,
+    settings,
+  ] = await Promise.all([
+    prisma.tool.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { category: true, _count: { select: { reviews: true } } },
+    }),
     prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.review.findMany({ orderBy: { createdAt: "desc" }, include: { user: true, tool: true } }),
     prisma.report.findMany({ orderBy: { createdAt: "desc" }, include: { tool: true, user: true } }),
+    prisma.tool.count({ where: { paidAt: { not: null } } }),
+    getStripeConfig(),
+    getSettings(),
   ]);
+
+  const pendingTools = tools.filter((t) => t.status === "PENDING" || t.status === "PENDING_PAYMENT");
+  const approvedTools = tools.filter((t) => t.status === "APPROVED");
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mb-8">
-        <Stat label="Tools" value={tools.length} />
-        <Stat label="Users" value={users.length} />
-        <Stat label="Reviews" value={reviews.length} />
-        <Stat label="Reports" value={reports.length} />
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Admin panel</h1>
+        <Badge variant={stripe.enabled ? "default" : "secondary"}>
+          Payments {stripe.enabled ? "on" : "off"} · {stripe.mode === "live" ? "live" : "sandbox"}
+        </Badge>
       </div>
 
-      <Tabs defaultValue="tools">
+      <Tabs defaultValue="dashboard">
         <TabsList>
-          <TabsTrigger value="tools">Tools</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="tools">Tools{pendingTools.length > 0 ? ` (${pendingTools.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
+          <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
+          <TabsTrigger value="reports">Reports ({reports.length})</TabsTrigger>
+          {isAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
         </TabsList>
 
+        {/* Dashboard */}
+        <TabsContent value="dashboard">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <Stat label="Total tools" value={tools.length} />
+            <Stat label="Awaiting review" value={pendingTools.length} highlight={pendingTools.length > 0} />
+            <Stat label="Published" value={approvedTools.length} />
+            <Stat label="Users" value={users.length} />
+            <Stat label="Reviews" value={reviews.length} />
+            <Stat label="Open reports" value={reports.filter((r) => r.status === "OPEN").length} />
+            <Stat label="Paid submissions" value={paidCount} />
+            <Stat
+              label="Review fee"
+              value={`$${(stripe.priceCents / 100).toFixed(2)}`}
+              hint={stripe.enabled ? `Stripe ${stripe.mode} mode` : "Payments off"}
+            />
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border p-5">
+              <h3 className="font-semibold tracking-tight">Review queue</h3>
+              {pendingTools.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">Nothing waiting. All clear.</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {pendingTools.slice(0, 5).map((t) => (
+                    <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                      <Link href={`/tools/${t.slug}`} className="truncate hover:underline">{t.name}</Link>
+                      <Badge variant="secondary">{t.status === "PENDING_PAYMENT" ? "awaiting payment" : "pending"}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="rounded-xl border p-5">
+              <h3 className="font-semibold tracking-tight">Configuration</h3>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <li>Stripe: {stripe.mode === "live" ? "live" : "sandbox"} mode, {stripe.secretKey ? "key configured" : "no key"}</li>
+                <li>OpenRouter: {settings[SETTING_KEYS.openrouterApiKey] ? "key configured" : "no key"}, model <code className="font-mono text-xs">{settings[SETTING_KEYS.openrouterModel]}</code></li>
+                <li>Submission fee: ${(stripe.priceCents / 100).toFixed(2)}</li>
+                <li>Masked test key: {maskSecret(settings[SETTING_KEYS.stripeSecretTest]) || "—"}</li>
+              </ul>
+              {isAdmin && (
+                <Link href="#" className="mt-3 inline-block text-sm text-primary hover:underline" />
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Tools */}
         <TabsContent value="tools">
           <Table>
             <TableHeader>
@@ -60,8 +137,8 @@ export default async function AdminPage() {
                   </TableCell>
                   <TableCell>{t.category.name}</TableCell>
                   <TableCell>
-                    <Badge variant={t.status === "APPROVED" ? "default" : t.status === "PENDING" ? "secondary" : "destructive"}>
-                      {t.status}
+                    <Badge variant={t.status === "APPROVED" ? "default" : t.status === "REJECTED" ? "destructive" : "secondary"}>
+                      {t.status === "PENDING_PAYMENT" ? "awaiting payment" : t.status.toLowerCase()}
                     </Badge>
                   </TableCell>
                   <TableCell>{t.featured ? "Yes" : "No"}</TableCell>
@@ -77,11 +154,13 @@ export default async function AdminPage() {
                       </form>
                     )}
                     <form action={async () => { "use server"; await toggleFeatured(t.id); }}>
-                      <Button size="sm" variant="outline" type="submit">Toggle featured</Button>
+                      <Button size="sm" variant="outline" type="submit">Feature</Button>
                     </form>
-                    <form action={async () => { "use server"; await deleteTool(t.id); }}>
-                      <Button size="sm" variant="destructive" type="submit">Delete</Button>
-                    </form>
+                    {isAdmin && (
+                      <form action={async () => { "use server"; await deleteTool(t.id); }}>
+                        <Button size="sm" variant="destructive" type="submit">Delete</Button>
+                      </form>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -89,6 +168,7 @@ export default async function AdminPage() {
           </Table>
         </TabsContent>
 
+        {/* Users */}
         <TabsContent value="users">
           <Table>
             <TableHeader>
@@ -96,6 +176,7 @@ export default async function AdminPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Joined</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -103,18 +184,30 @@ export default async function AdminPage() {
               {users.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell>{u.name ?? "—"}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>{u.role}</TableCell>
-                  <TableCell className="flex gap-1">
-                    <form action={async () => { "use server"; await updateUserRole(u.id, "USER"); }}>
-                      <Button size="sm" variant="outline" type="submit">User</Button>
-                    </form>
-                    <form action={async () => { "use server"; await updateUserRole(u.id, "MODERATOR"); }}>
-                      <Button size="sm" variant="outline" type="submit">Mod</Button>
-                    </form>
-                    <form action={async () => { "use server"; await updateUserRole(u.id, "ADMIN"); }}>
-                      <Button size="sm" variant="outline" type="submit">Admin</Button>
-                    </form>
+                  <TableCell className="max-w-52 truncate">{u.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={u.role === "ADMIN" ? "default" : u.role === "MODERATOR" ? "secondary" : "outline"}>
+                      {u.role.toLowerCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{u.createdAt.toLocaleDateString()}</TableCell>
+                  <TableCell className="flex flex-wrap gap-1">
+                    {isAdmin && (
+                      <>
+                        {(["USER", "MODERATOR", "ADMIN"] as const).map((role) => (
+                          <form key={role} action={async () => { "use server"; await updateUserRole(u.id, role); }}>
+                            <Button size="sm" variant={u.role === role ? "default" : "outline"} type="submit">
+                              {role === "MODERATOR" ? "Mod" : role.charAt(0) + role.slice(1).toLowerCase()}
+                            </Button>
+                          </form>
+                        ))}
+                        {u.id !== session.user.id && (
+                          <form action={async () => { "use server"; await deleteUser(u.id); }}>
+                            <Button size="sm" variant="destructive" type="submit">Delete</Button>
+                          </form>
+                        )}
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -122,6 +215,7 @@ export default async function AdminPage() {
           </Table>
         </TabsContent>
 
+        {/* Reviews */}
         <TabsContent value="reviews">
           <Table>
             <TableHeader>
@@ -145,6 +239,7 @@ export default async function AdminPage() {
           </Table>
         </TabsContent>
 
+        {/* Reports */}
         <TabsContent value="reports">
           <Table>
             <TableHeader>
@@ -159,22 +254,47 @@ export default async function AdminPage() {
                 <TableRow key={r.id}>
                   <TableCell>{r.tool.name}</TableCell>
                   <TableCell>{r.reason}</TableCell>
-                  <TableCell>{r.status}</TableCell>
+                  <TableCell>
+                    <Badge variant={r.status === "OPEN" ? "destructive" : "secondary"}>{r.status.toLowerCase()}</Badge>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TabsContent>
+
+        {/* Settings */}
+        {isAdmin && (
+          <TabsContent value="settings">
+            <AdminSettings
+              data={{
+                isAdmin,
+                paymentEnabled: stripe.enabled,
+                priceDollars: (stripe.priceCents / 100).toFixed(2),
+                stripeMode: stripe.mode,
+                stripeSecretTest: maskSecret(settings[SETTING_KEYS.stripeSecretTest]),
+                stripeSecretLive: maskSecret(settings[SETTING_KEYS.stripeSecretLive]),
+                stripeWebhookTest: maskSecret(settings[SETTING_KEYS.stripeWebhookTest]),
+                stripeWebhookLive: maskSecret(settings[SETTING_KEYS.stripeWebhookLive]),
+                openrouterApiKey: maskSecret(settings[SETTING_KEYS.openrouterApiKey]),
+                openrouterModel: settings[SETTING_KEYS.openrouterModel],
+                stripeConfigured: !!stripe.secretKey,
+                aiConfigured: !!settings[SETTING_KEYS.openrouterApiKey],
+              }}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, highlight, hint }: { label: string; value: number | string; highlight?: boolean; hint?: string }) {
   return (
-    <div className="rounded-lg border p-4">
+    <div className={`rounded-xl border p-4 ${highlight ? "border-primary/40 bg-primary/5" : ""}`}>
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
+      {hint && <div className="mt-0.5 text-[10px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }

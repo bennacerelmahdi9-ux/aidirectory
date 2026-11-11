@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
-import type Stripe from "stripe";
-import { getStripe, stripeMode, webhookSecretForMode } from "@/lib/stripe";
+import Stripe from "stripe";
+import { getStripeConfig } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Stripe webhook. Configure two endpoints (one per mode) in the Stripe
- * dashboard pointing here; the secret selects itself by STRIPE_MODE.
+ * dashboard pointing here; the secret selects itself by the active mode.
  * Handles: checkout.session.completed -> mark the tool as paid (PENDING).
  */
 export async function POST(request: Request) {
-  const stripe = getStripe();
-  const secret = webhookSecretForMode(stripeMode());
-  if (!stripe || !secret) {
+  const config = await getStripeConfig();
+  if (!config.secretKey || !config.webhookSecret) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
   }
 
@@ -23,7 +22,8 @@ export async function POST(request: Request) {
   const payload = await request.text();
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(payload, signature, secret);
+    const stripe = new Stripe(config.secretKey);
+    event = stripe.webhooks.constructEvent(payload, signature, config.webhookSecret);
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }

@@ -1,48 +1,43 @@
 import Stripe from "stripe";
+import { SETTING_KEYS, getSettings } from "@/lib/settings";
 
 /**
  * Stripe configuration with explicit sandbox (test) and live modes.
- *
- * Env vars:
- *   SUBMISSION_PAYMENT_ENABLED      "true" to require payment for submissions
- *   STRIPE_MODE                     "test" (sandbox) | "live"
- *   STRIPE_SECRET_KEY_TEST          sk_test_...
- *   STRIPE_SECRET_KEY_LIVE          sk_live_...
- *   STRIPE_WEBHOOK_SECRET_TEST      whsec_... (sandbox webhook)
- *   STRIPE_WEBHOOK_SECRET_LIVE      whsec_... (live webhook)
- *   STRIPE_SUBMISSION_PRICE_CENTS   one-time fee in cents (default 900)
+ * Values come from the admin panel (DB settings) with env fallbacks.
  */
 export type StripeMode = "test" | "live";
 
-export function stripeMode(): StripeMode {
-  return process.env.STRIPE_MODE === "live" ? "live" : "test";
+export type StripeConfig = {
+  /** Whether paid submission is turned on and a key exists. */
+  enabled: boolean;
+  mode: StripeMode;
+  secretKey: string;
+  webhookSecret: string;
+  /** One-time submission fee in cents. */
+  priceCents: number;
+};
+
+export async function getStripeConfig(): Promise<StripeConfig> {
+  const s = await getSettings();
+  const mode: StripeMode = s[SETTING_KEYS.stripeMode] === "live" ? "live" : "test";
+  const secretKey =
+    (mode === "live" ? s[SETTING_KEYS.stripeSecretLive] : s[SETTING_KEYS.stripeSecretTest]) || "";
+  const webhookSecret =
+    (mode === "live" ? s[SETTING_KEYS.stripeWebhookLive] : s[SETTING_KEYS.stripeWebhookTest]) || "";
+  const priceCentsRaw = Number(s[SETTING_KEYS.priceCents]);
+  const priceCents = Number.isFinite(priceCentsRaw) && priceCentsRaw > 0 ? priceCentsRaw : 900;
+  return {
+    enabled: s[SETTING_KEYS.paymentEnabled] === "true" && !!secretKey,
+    mode,
+    secretKey,
+    webhookSecret,
+    priceCents,
+  };
 }
 
-export function paymentEnabled(): boolean {
-  if (process.env.SUBMISSION_PAYMENT_ENABLED !== "true") return false;
-  return !!secretKeyForMode(stripeMode());
-}
-
-function secretKeyForMode(mode: StripeMode): string | undefined {
-  return mode === "live"
-    ? process.env.STRIPE_SECRET_KEY_LIVE
-    : process.env.STRIPE_SECRET_KEY_TEST;
-}
-
-export function webhookSecretForMode(mode: StripeMode): string | undefined {
-  return mode === "live"
-    ? process.env.STRIPE_WEBHOOK_SECRET_LIVE
-    : process.env.STRIPE_WEBHOOK_SECRET_TEST;
-}
-
-export function submissionPriceCents(): number {
-  const n = Number(process.env.STRIPE_SUBMISSION_PRICE_CENTS ?? 900);
-  return Number.isFinite(n) && n > 0 ? n : 900;
-}
-
-/** Stripe client for the active mode, or null when payment is not configured. */
-export function getStripe(): Stripe | null {
-  const key = secretKeyForMode(stripeMode());
-  if (!key) return null;
-  return new Stripe(key);
+/** Stripe client for the active mode, or null when not configured. */
+export async function getStripe(): Promise<Stripe | null> {
+  const { secretKey } = await getStripeConfig();
+  if (!secretKey) return null;
+  return new Stripe(secretKey);
 }

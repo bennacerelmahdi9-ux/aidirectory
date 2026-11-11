@@ -2,10 +2,10 @@
  * OpenRouter-powered tool draft generation: scrape the submitted website,
  * then ask a chat model to return structured fields for the submit form.
  *
- * Env vars:
- *   OPENROUTER_API_KEY   sk-or-v1-...
- *   OPENROUTER_MODEL     any OpenRouter model id (default openai/gpt-4o-mini)
+ * Key and model are admin-configurable (DB settings) with env fallbacks.
  */
+
+import { SETTING_KEYS, getSettings } from "@/lib/settings";
 
 const FETCH_TIMEOUT_MS = 10_000;
 const AI_TIMEOUT_MS = 30_000;
@@ -18,8 +18,12 @@ export type ToolDraft = {
   category: string;
 };
 
-export function aiEnabled(): boolean {
-  return !!process.env.OPENROUTER_API_KEY;
+async function aiConfig(): Promise<{ apiKey: string; model: string }> {
+  const s = await getSettings();
+  return {
+    apiKey: s[SETTING_KEYS.openrouterApiKey] || "",
+    model: s[SETTING_KEYS.openrouterModel] || "openai/gpt-4o-mini",
+  };
 }
 
 /** Fetch a page and pull out title / meta description / visible text. */
@@ -81,14 +85,13 @@ function extractJson(raw: string): ToolDraft | null {
  * Throws Error with a friendly message when unavailable.
  */
 export async function generateToolDraft(websiteUrl: string, categoryNames: string[]): Promise<ToolDraft> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("AI generation is not configured (missing OPENROUTER_API_KEY).");
+  const { apiKey, model } = await aiConfig();
+  if (!apiKey) throw new Error("AI generation is not configured (set the OpenRouter key in the admin panel).");
   if (!/^https?:\/\//i.test(websiteUrl)) throw new Error("Enter a valid website URL first.");
 
   const page = await scrapePage(websiteUrl);
   if (!page || (!page.title && !page.text)) throw new Error("Could not read the website. Check the URL and try again.");
 
-  const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
   const prompt = [
     "You fill submissions for an AI tools directory.",
     "From the website content below, return ONLY a JSON object with keys:",
