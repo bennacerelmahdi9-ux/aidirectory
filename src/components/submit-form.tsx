@@ -8,7 +8,7 @@ import {
   SubmitButton,
 } from "@/components/ui/auth-section-1";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { submitTool, generateToolDraft } from "@/app/actions";
 import { stripHtml } from "@/lib/utils";
 import { toast } from "sonner";
@@ -122,8 +122,10 @@ export function SubmitForm({
 
       <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
         <SelectTrigger className={boxTrigger}>
-          <SelectValue />
-          <span className="shrink-0 font-normal">Category</span>
+          <span className="min-w-0 flex-1 truncate text-left text-black/70 dark:text-white/80">
+            {categories.find((c) => c.id === categoryId)?.name ?? "Select a category"}
+          </span>
+          <span className="shrink-0 text-sm font-normal text-black/45 dark:text-white/45">Category</span>
         </SelectTrigger>
         <SelectContent>
           {categories.map((c) => (
@@ -134,8 +136,18 @@ export function SubmitForm({
 
       <Select value={pricing} onValueChange={(v) => setPricing(v ?? "FREEMIUM")}>
         <SelectTrigger className={boxTrigger}>
-          <SelectValue />
-          <span className="shrink-0 font-normal">Pricing</span>
+          <span className="min-w-0 flex-1 truncate text-left text-black/70 dark:text-white/80">
+            {(
+              {
+                FREE: "Free",
+                FREEMIUM: "Freemium",
+                PAID: "Paid",
+                CONTACT: "Contact sales",
+                OPEN_SOURCE: "Open source",
+              } as Record<string, string>
+            )[pricing] ?? "Pricing"}
+          </span>
+          <span className="shrink-0 text-sm font-normal text-black/45 dark:text-white/45">Pricing</span>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="FREE">Free</SelectItem>

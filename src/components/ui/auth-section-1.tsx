@@ -176,7 +176,7 @@ export function FieldBox({
         className="min-w-0 flex-1 truncate bg-transparent text-black/70 outline-none dark:text-white/80"
       />
       {shownLabel && (
-        <span className="shrink-0 text-black dark:text-white">{label}</span>
+        <span className="shrink-0 text-sm font-normal text-black/45 dark:text-white/45">{label}</span>
       )}
     </label>
   );
@@ -222,7 +222,7 @@ export function FieldArea({
         className="min-w-0 flex-1 resize-none bg-transparent text-black/70 outline-none dark:text-white/80"
       />
       {shownLabel && (
-        <span className="shrink-0 text-black dark:text-white">{label}</span>
+        <span className="shrink-0 self-start text-sm font-normal text-black/45 dark:text-white/45">{label}</span>
       )}
     </label>
   );
