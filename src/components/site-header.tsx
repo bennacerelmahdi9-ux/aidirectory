@@ -11,9 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Moon, Sun, Menu } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export function SiteHeader() {
   const { data: session } = useSession();
@@ -28,13 +27,6 @@ export function SiteHeader() {
           </span>
           AIAtlas
         </Link>
-
-        <nav className="hidden items-center gap-1 md:flex">
-          <Link href="/tools" className={buttonVariants({ variant: "ghost", size: "sm" })}>Tools</Link>
-          <Link href="/models" className={buttonVariants({ variant: "ghost", size: "sm" })}>Models</Link>
-          <Link href="/resources" className={buttonVariants({ variant: "ghost", size: "sm" })}>Resources</Link>
-          <Link href="/compare" className={buttonVariants({ variant: "ghost", size: "sm" })}>Compare</Link>
-        </nav>
 
         <div className="ml-auto flex items-center gap-2">
           <Button
@@ -86,27 +78,6 @@ export function SiteHeader() {
             </>
           )}
 
-          <Sheet>
-            <SheetTrigger className="md:hidden">
-              <Menu className="h-5 w-5" />
-            </SheetTrigger>
-            <SheetContent side="right">
-              <nav className="mt-8 flex flex-col gap-2">
-                <Link href="/tools" className="text-lg font-medium">
-                  Tools
-                </Link>
-                <Link href="/models" className="text-lg font-medium">
-                  Models
-                </Link>
-                <Link href="/resources" className="text-lg font-medium">
-                  Resources
-                </Link>
-                <Link href="/compare" className="text-lg font-medium">
-                  Compare
-                </Link>
-              </nav>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
       <div
