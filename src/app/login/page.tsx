@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import {
+  AuthSection,
+  FieldBox,
+  SubmitButton,
+} from "@/components/ui/auth-section-1";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -33,28 +34,46 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12 flex justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <Label>Email</Label>
-              <Input name="email" type="email" required />
-            </div>
-            <div>
-              <Label>Password</Label>
-              <Input name="password" type="password" required />
-            </div>
-            <Button type="submit" className="w-full" disabled={pending}>Sign in</Button>
-            <p className="text-sm text-muted-foreground text-center">
-              No account? <Link href="/register" className="text-primary hover:underline">Sign up</Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthSection
+      title="Sign in"
+      subtitle="Welcome back to the atlas"
+      headline={
+        <>
+          Think fast,
+          <br />
+          Build faster
+        </>
+      }
+      ctaHref="/tools"
+      ctaLabel="Explore the AI tools"
+    >
+      <form onSubmit={onSubmit} className="space-y-5">
+        <FieldBox
+          label="Email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+        />
+        <FieldBox
+          label="Password"
+          name="password"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+
+        <SubmitButton pending={pending}>
+          {pending ? "Signing in..." : "Sign in"}
+        </SubmitButton>
+
+        <p className="pt-4 text-center text-sm text-black/50 dark:text-white/50">
+          No account?{" "}
+          <Link href="/register" className="font-medium text-foreground underline underline-offset-2 hover:opacity-80">
+            Sign up
+          </Link>
+        </p>
+      </form>
+    </AuthSection>
   );
 }

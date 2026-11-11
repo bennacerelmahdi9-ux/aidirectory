@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AuthSplit, AuthSwitchLink } from "@/components/auth-split";
+import Link from "next/link";
+import {
+  AuthSection,
+  FieldBox,
+  CheckboxLine,
+  SubmitButton,
+} from "@/components/ui/auth-section-1";
 import { registerUser } from "@/app/actions";
 import { toast } from "sonner";
 
@@ -27,40 +30,57 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:py-16">
-      <AuthSplit
-        title="Join AIAtlas"
-        description="Create a free account to bookmark tools, submit your own, and help the community grow the atlas."
-        highlights={[
-          "Bookmark and track your favourite AI tools",
-          "Submit tools, models and developer resources",
-          "Community-driven, open source and free",
-        ]}
-      >
-        <h2 className="text-2xl font-bold tracking-tight">Create account</h2>
-        <p className="mt-1 text-sm text-muted-foreground">It only takes a few seconds.</p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required className="h-11" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required className="h-11" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required minLength={6} className="h-11" />
-            <p className="text-xs text-muted-foreground">At least 6 characters.</p>
-          </div>
-          <Button type="submit" className="h-11 w-full" disabled={pending}>
-            {pending ? "Creating account..." : "Create account"}
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account? <AuthSwitchLink href="/login">Sign in</AuthSwitchLink>
-          </p>
-        </form>
-      </AuthSplit>
-    </div>
+    <AuthSection
+      title="Create an account"
+      subtitle="Bookmark tools, submit your own, join the community"
+      headline={
+        <>
+          Explore the
+          <br />
+          atlas of AI
+        </>
+      }
+      ctaHref="/tools"
+      ctaLabel="Explore the AI tools"
+    >
+      <form onSubmit={onSubmit} className="space-y-5">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FieldBox label="Name" name="name" required autoComplete="name" />
+        </div>
+        <FieldBox
+          label="Email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+        />
+        <FieldBox
+          label="Password"
+          name="password"
+          type="password"
+          required
+          minLength={6}
+          autoComplete="new-password"
+        />
+
+        <div className="space-y-4 pt-2 text-sm leading-5 text-black/30 dark:text-white/35 sm:text-[15px]">
+          <CheckboxLine>
+            By creating an account, you agree that submitted tools are reviewed
+            by moderators before being published.
+          </CheckboxLine>
+        </div>
+
+        <SubmitButton pending={pending}>
+          {pending ? "Creating account..." : "Create account"}
+        </SubmitButton>
+
+        <p className="pt-4 text-center text-sm text-black/50 dark:text-white/50">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-foreground underline underline-offset-2 hover:opacity-80">
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </AuthSection>
   );
 }
