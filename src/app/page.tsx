@@ -20,20 +20,21 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="border-b bg-muted/30">
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
+      <section className="relative overflow-hidden border-b">
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
+        <div className="container mx-auto px-4 py-24 text-center md:py-32">
+          <h1 className="text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl">
             Discover the best AI tools
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
             AIAtlas is an open-source directory to discover, compare, and explore AI tools, models, APIs, agents, and developer resources.
           </p>
-          <form action="/tools" className="mx-auto mt-8 flex max-w-xl items-center gap-2">
+          <form action="/tools" className="mx-auto mt-10 flex max-w-2xl items-center gap-2">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input name="q" placeholder="Search AI tools, models, APIs..." className="pl-9 h-12" />
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input name="q" placeholder="Search AI tools, models, APIs..." className="h-14 rounded-xl pl-12 text-base shadow-sm" />
             </div>
-            <Button type="submit" size="lg">Search</Button>
+            <Button type="submit" size="lg" className="h-14 rounded-xl px-8">Search</Button>
           </form>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             {categories.slice(0, 6).map((c: any) => (
@@ -123,14 +124,14 @@ export default async function HomePage() {
 
 function Section({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
   return (
-    <section className="container mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <Link href={href} className={buttonVariants({ variant: "ghost" })}>
+    <section className="container mx-auto px-4 py-16">
+      <div className="mb-8 flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h2>
+        <Link href={href} className={buttonVariants({ variant: "ghost", size: "sm" })}>
           View all <ArrowRight className="ml-1 h-4 w-4" />
         </Link>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
     </section>
   );
 }

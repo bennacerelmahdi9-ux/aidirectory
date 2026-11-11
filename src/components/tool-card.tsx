@@ -9,27 +9,27 @@ type ToolWithCategory = Prisma.ToolGetPayload<{ include: { category: true } }>;
 export function ToolCard({ tool }: { tool: ToolWithCategory }) {
   return (
     <Link href={`/tools/${tool.slug}`} className="group block">
-      <Card className="h-full transition-all hover:shadow-md hover:-translate-y-0.5">
-        <CardHeader className="flex flex-row items-center gap-3 space-y-0">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-sm font-bold">
+      <Card className="h-full overflow-hidden border-border/60 bg-card/80 backdrop-blur transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30">
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 text-sm font-bold text-primary ring-1 ring-primary/10">
             {tool.logo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={tool.logo} alt={tool.name} className="h-8 w-8 rounded object-contain" />
+              <img src={tool.logo} alt={tool.name} className="h-8 w-8 rounded-lg object-contain" />
             ) : (
               tool.name.charAt(0)
             )}
           </div>
-          <div className="min-w-0">
-            <div className="font-semibold truncate">{tool.name}</div>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold truncate group-hover:text-primary transition-colors">{tool.name}</div>
             <div className="text-xs text-muted-foreground truncate">{tool.category.name}</div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground line-clamp-2">{tool.description}</p>
+        <CardContent className="space-y-3 pt-0">
+          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{tool.description}</p>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary">{PRICING_LABELS[tool.pricingModel] ?? tool.pricingModel}</Badge>
-            {tool.hasFreePlan && <Badge variant="outline">Free plan</Badge>}
-            {tool.isOpenSource && <Badge variant="outline">Open source</Badge>}
+            <Badge variant="secondary" className="text-xs">{PRICING_LABELS[tool.pricingModel] ?? tool.pricingModel}</Badge>
+            {tool.hasFreePlan && <Badge variant="outline" className="text-xs">Free plan</Badge>}
+            {tool.isOpenSource && <Badge variant="outline" className="text-xs">Open source</Badge>}
           </div>
         </CardContent>
       </Card>
