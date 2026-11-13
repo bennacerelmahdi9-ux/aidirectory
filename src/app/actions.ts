@@ -299,3 +299,41 @@ export async function updateSettings(formData: FormData) {
   revalidatePath("/submit");
   return { ok: true };
 }
+
+export async function createCategory(formData: FormData) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN" && session?.user?.role !== "MODERATOR") {
+    return { ok: false, error: "Forbidden." };
+  }
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  if (!name) return { ok: false, error: "Name is required." };
+
+  const slug = slugify(name);
+  const existing = await prisma.category.findUnique({ where: { slug } });
+  if (existing) return { ok: false, error: "Category slug already exists." };
+
+  await prisma.category.create({
+    data: {
+      name,
+      slug,
+      description: description || null,
+    },
+  });
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function deleteCategory(id: string) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
+
+  const toolCount = await prisma.tool.count({ where: { categoryId: id } });
+  if (toolCount > 0) {
+    return { ok: false, error: `Cannot delete: category has ${toolCount} tool(s). Reassign them first.` };
+  }
+
+  await prisma.category.delete({ where: { id } });
+  revalidatePath("/admin");
+  return { ok: true };
+}

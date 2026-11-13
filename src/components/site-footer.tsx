@@ -1,6 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function SiteFooter() {
+  const pathname = usePathname();
+
+  // Hide the marketing footer on the admin dashboard
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <footer className="border-t py-10">
       <div className="container mx-auto grid gap-8 px-4 md:grid-cols-4">

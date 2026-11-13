@@ -12,11 +12,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
+import { usePathname } from "next/navigation";
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
+
+  // Hide the global website header on the admin dashboard for a clean full-screen dashboard look
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur">
@@ -27,6 +34,15 @@ export function SiteHeader() {
           </span>
           AIAtlas
         </Link>
+
+        {session?.user && (session.user.role === "ADMIN" || session.user.role === "MODERATOR") && (
+          <Link
+            href="/admin"
+            className="ml-2 inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+          >
+            Admin Panel
+          </Link>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           <Button
