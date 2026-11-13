@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import { getToolBySlug, incrementView } from "@/lib/queries";
 import { PRICING_LABELS, PLATFORMS } from "@/lib/constants";
+import { getStripeConfig } from "@/lib/stripe";
+import { auth } from "@/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { BookmarkButton } from "@/components/bookmark-button";
+import { BoostButton } from "@/components/boost-button";
 import { ReviewForm } from "@/components/review-form";
 import { Star } from "lucide-react";
 import { looksLikeHtml } from "@/lib/utils";
@@ -40,6 +43,11 @@ export default async function ToolDetailPage({ params }: { params: Params }) {
       ? tool.reviews.reduce((a, r) => a + r.rating, 0) / tool.reviews.length
       : 0;
 
+  const boosted = tool.boostedUntil ? tool.boostedUntil > new Date() : false;
+  const [session, stripeConfig] = await Promise.all([auth(), getStripeConfig()]);
+  const isOwner = session?.user?.id && tool.submittedById === session.user.id;
+  const canBoost = (isOwner || session?.user?.role === "ADMIN") && !!stripeConfig.secretKey;
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
@@ -62,20 +70,33 @@ export default async function ToolDetailPage({ params }: { params: Params }) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <BookmarkButton toolId={tool.id} toolSlug={tool.slug} />
-          <a
-            href={tool.websiteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants()}
-          >
-            Visit website
-          </a>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <BookmarkButton toolId={tool.id} toolSlug={tool.slug} />
+            <a
+              href={tool.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants()}
+            >
+              Visit website
+            </a>
+          </div>
+          {canBoost && !boosted && (
+            <BoostButton
+              toolId={tool.id}
+              priceDollars={(stripeConfig.boostPriceCents / 100).toFixed(2)}
+              days={stripeConfig.boostDays}
+            />
+          )}
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
+        {boosted && <Badge className="bg-primary/10 text-primary ring-1 ring-primary/20">Sponsored</Badge>}
+        {tool.isDead && tool.lastCheckedAt && (
+          <Badge variant="destructive">Site unavailable (last checked {tool.lastCheckedAt.toLocaleDateString()})</Badge>
+        )}
         <Badge variant="secondary">{PRICING_LABELS[tool.pricingModel]}</Badge>
         {tool.hasFreePlan && <Badge variant="outline">Free plan</Badge>}
         {tool.isOpenSource && <Badge variant="outline">Open source</Badge>}

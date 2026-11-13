@@ -1,4 +1,5 @@
 import { getTools, getToolBySlug } from "@/lib/queries";
+import { AiCompare } from "@/components/ai-compare";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_LABELS } from "@/lib/constants";
@@ -40,7 +41,9 @@ export default async function ComparePage({ searchParams }: { searchParams: SP }
       </form>
 
       {valid.length > 0 && (
-        <div className="overflow-x-auto">
+        <>
+          <AiCompare ids={valid.map((t) => t.slug).join(",")} />
+          <div className="overflow-x-auto mt-4">
           <table className="w-full text-sm">
             <thead>
               <tr>
@@ -90,7 +93,8 @@ export default async function ComparePage({ searchParams }: { searchParams: SP }
               </tr>
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
 
       <div className="mt-8">

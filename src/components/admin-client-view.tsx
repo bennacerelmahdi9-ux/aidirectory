@@ -59,6 +59,8 @@ type AdminClientViewProps = {
   deleteUserAction: (id: string) => Promise<any>;
   createCategoryAction: (formData: FormData) => Promise<any>;
   deleteCategoryAction: (id: string) => Promise<any>;
+  adminToggleBoostAction: (id: string) => Promise<any>;
+  checkToolHealthAction: (id: string) => Promise<any>;
 };
 
 export function AdminClientView({
@@ -83,6 +85,8 @@ export function AdminClientView({
   deleteUserAction,
   createCategoryAction,
   deleteCategoryAction,
+  adminToggleBoostAction,
+  checkToolHealthAction,
 }: AdminClientViewProps) {
   const [activeTab, setActiveTab] = useState<
     "overview" | "tools" | "categories" | "users" | "reviews" | "reports" | "settings"
@@ -514,17 +518,24 @@ export function AdminClientView({
                           </TableCell>
                           <TableCell>{t.category?.name ?? "—"}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                t.status === "APPROVED"
-                                  ? "default"
-                                  : t.status === "REJECTED"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                            >
-                              {t.status === "PENDING_PAYMENT" ? "Awaiting Pay" : t.status.toLowerCase()}
-                            </Badge>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge
+                                variant={
+                                  t.status === "APPROVED"
+                                    ? "default"
+                                    : t.status === "REJECTED"
+                                    ? "destructive"
+                                    : "secondary"
+                                }
+                              >
+                                {t.status === "PENDING_PAYMENT" ? "Awaiting Pay" : t.status.toLowerCase()}
+                              </Badge>
+                              {t.isDead && t.lastCheckedAt && (
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Site unavailable
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{t.featured ? "⭐ Yes" : "No"}</TableCell>
                           <TableCell className="text-right">
@@ -546,6 +557,18 @@ export function AdminClientView({
                               <form action={async () => { await toggleFeaturedAction(t.id); }}>
                                 <Button size="sm" variant="outline" type="submit" className="h-7 text-xs">
                                   {t.featured ? "Unfeature" : "Feature"}
+                                </Button>
+                              </form>
+                              {isAdmin && (
+                                <form action={async () => { await adminToggleBoostAction(t.id); }}>
+                                  <Button size="sm" variant="outline" type="submit" className="h-7 text-xs">
+                                    {t.boostedUntil && new Date(t.boostedUntil) > new Date() ? "Unboost" : "Boost"}
+                                  </Button>
+                                </form>
+                              )}
+                              <form action={async () => { await checkToolHealthAction(t.id); }}>
+                                <Button size="sm" variant="outline" type="submit" className="h-7 text-xs" title="Re-check whether the tool's website is reachable">
+                                  Health
                                 </Button>
                               </form>
                               {isAdmin && (

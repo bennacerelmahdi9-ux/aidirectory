@@ -130,6 +130,9 @@ model Tool {
   tags           String[]     @default([])
   screenshots    String[]     @default([])
   lastVerifiedAt DateTime?
+  lastCheckedAt  DateTime?
+  isDead         Boolean   @default(false)
+  boostedUntil   DateTime?
   status         ToolStatus   @default(PENDING)
   featured       Boolean      @default(false)
   viewCount      Int          @default(0)
@@ -150,6 +153,7 @@ model Tool {
   @@index([categoryId])
   @@index([status])
   @@index([featured])
+  @@index([boostedUntil])
 }
 
 model Review {

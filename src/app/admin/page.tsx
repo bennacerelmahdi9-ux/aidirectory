@@ -12,6 +12,8 @@ import {
   deleteUser,
   createCategory,
   deleteCategory,
+  adminToggleBoost,
+  checkToolHealth,
 } from "@/app/actions";
 import { AdminClientView } from "@/components/admin-client-view";
 
@@ -53,6 +55,8 @@ export default async function AdminPage() {
     isAdmin,
     paymentEnabled: stripe.enabled,
     priceDollars: (stripe.priceCents / 100).toFixed(2),
+    boostDollars: (stripe.boostPriceCents / 100).toFixed(2),
+    boostDays: String(stripe.boostDays),
     stripeMode: stripe.mode,
     stripeSecretTest: maskSecret(settings[SETTING_KEYS.stripeSecretTest]),
     stripeSecretLive: maskSecret(settings[SETTING_KEYS.stripeSecretLive]),
@@ -87,6 +91,8 @@ export default async function AdminPage() {
       deleteUserAction={deleteUser}
       createCategoryAction={createCategory}
       deleteCategoryAction={deleteCategory}
+      adminToggleBoostAction={adminToggleBoost}
+      checkToolHealthAction={checkToolHealth}
     />
   );
 }

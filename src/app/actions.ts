@@ -7,11 +7,27 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { fetchFavicon } from "@/lib/favicon";
-import { generateToolDraft as aiGenerateToolDraft } from "@/lib/ai";
+import { generateToolDraft as aiGenerateToolDraft, parseNaturalLanguageQuery, compareToolsWithAI } from "@/lib/ai";
 import { getStripe, getStripeConfig } from "@/lib/stripe";
 import { SETTING_KEYS, setSettings } from "@/lib/settings";
+import { checkRateLimit, rateLimitError } from "@/lib/rate-limit";
+import { isSiteAlive } from "@/lib/health";
+import { headers } from "next/headers";
 import DOMPurify from "isomorphic-dompurify";
 import { stripHtml, looksLikeHtml } from "@/lib/utils";
+
+/** Rate-limit key for the current caller: user id when logged in, else IP. */
+async function callerKey(prefix: string): Promise<string> {
+  const session = await auth();
+  if (session?.user?.id) return `${prefix}:user:${session.user.id}`;
+  try {
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+    return `${prefix}:ip:${ip}`;
+  } catch {
+    return `${prefix}:anon`;
+  }
+}
 
 export async function registerUser(formData: FormData) {
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
@@ -30,6 +46,10 @@ export async function registerUser(formData: FormData) {
 export async function submitTool(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Not authenticated." };
+
+  // Max 10 submissions per user/IP per day.
+  const rl = await checkRateLimit(await callerKey("submit"), 10, 24 * 60 * 60 * 1000);
+  if (!rl.ok) return { ok: false, error: rateLimitError(rl.retryAfterSec) };
 
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -118,14 +138,207 @@ export async function submitTool(formData: FormData) {
   return { ok: true };
 }
 
-/** AI-generated draft for the submit form (OpenRouter). */
+/** AI-generated draft for the submit form (OpenRouter). Max 5 per hour. */
 export async function generateToolDraft(websiteUrl: string, categoryNames: string[]) {
   try {
+    const rl = await checkRateLimit(await callerKey("ai-draft"), 5, 60 * 60 * 1000);
+    if (!rl.ok) return { ok: false as const, error: rateLimitError(rl.retryAfterSec) };
     const draft = await aiGenerateToolDraft(websiteUrl, categoryNames);
     return { ok: true as const, ...draft };
   } catch (e) {
     return { ok: false as const, error: e instanceof Error ? e.message : "Generation failed." };
   }
+}
+
+/**
+ * Natural-language search (#3): parse a free-text query into directory
+ * filters via OpenRouter, then hand back the /tools URL to navigate to.
+ * Max 10 AI searches per hour.
+ */
+export async function aiSearchTools(query: string) {
+  const q = query.trim();
+  if (!q) return { ok: false as const, error: "Type what you're looking for first." };
+  if (q.length > 200) return { ok: false as const, error: "Query too long (max 200 characters)." };
+  try {
+    const rl = await checkRateLimit(await callerKey("ai-search"), 10, 60 * 60 * 1000);
+    if (!rl.ok) return { ok: false as const, error: rateLimitError(rl.retryAfterSec) };
+
+    const { getCategories } = await import("@/lib/queries");
+    const categories = await getCategories();
+    const categoryNames = categories.map((c) => c.name as string);
+
+    const parsed = await parseNaturalLanguageQuery(q, categoryNames);
+
+    // Build the /tools URL from the parsed filters.
+    const params = new URLSearchParams();
+    params.set("q", parsed.cleanedQuery || q);
+    params.set("ai", q);
+    if (parsed.category) {
+      const cat = categories.find((c) => c.name === parsed.category);
+      if (cat) params.set("category", String(cat.slug));
+    }
+    if (parsed.pricing) params.set("pricing", parsed.pricing);
+    if (parsed.free) params.set("free", "1");
+    if (parsed.openSource) params.set("openSource", "1");
+    // Extra tags narrow the text search when the model extracted keywords.
+    if (parsed.tags?.length && parsed.cleanedQuery) {
+      params.set("tags", parsed.tags.join(","));
+    }
+
+    // Human-readable summary of what the AI understood.
+    const understood: string[] = [];
+    if (parsed.category) understood.push(`category: ${parsed.category}`);
+    if (parsed.pricing) understood.push(`pricing: ${parsed.pricing.toLowerCase()}`);
+    if (parsed.free) understood.push("has a free plan");
+    if (parsed.openSource) understood.push("open source");
+    if (parsed.tags?.length) understood.push(`tags: ${parsed.tags.join(", ")}`);
+
+    return { ok: true as const, url: `/tools?${params.toString()}`, understood };
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : "AI search failed." };
+  }
+}
+
+/**
+ * AI comparison (#1): generate a narrative comparison for the tools
+ * currently on /compare. Max 5 per hour.
+ */
+export async function aiCompareTools(ids: string) {
+  try {
+    const rl = await checkRateLimit(await callerKey("ai-compare"), 5, 60 * 60 * 1000);
+    if (!rl.ok) return { ok: false as const, error: rateLimitError(rl.retryAfterSec) };
+
+    const slugs = ids.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 3);
+    if (slugs.length < 2) return { ok: false as const, error: "Pick at least two tools to compare." };
+
+    const tools = await prisma.tool.findMany({
+      where: { slug: { in: slugs }, status: "APPROVED" },
+    });
+    if (tools.length < 2) return { ok: false as const, error: "Could not find those tools." };
+
+    const text = await compareToolsWithAI(
+      tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        websiteUrl: t.websiteUrl,
+        pricingModel: t.pricingModel,
+        hasFreePlan: t.hasFreePlan,
+        isOpenSource: t.isOpenSource,
+        tags: t.tags,
+      })),
+    );
+    return { ok: true as const, text };
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : "AI comparison failed." };
+  }
+}
+
+/**
+ * Paid boost (#12): start a one-time Stripe checkout that places the
+ * tool at the top of /tools for the configured number of days.
+ */
+export async function startToolBoost(toolId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "Not authenticated." };
+
+  const tool = await prisma.tool.findUnique({ where: { id: toolId } });
+  if (!tool || tool.status !== "APPROVED") {
+    return { ok: false, error: "Only published tools can be boosted." };
+  }
+  if (tool.submittedById !== session.user.id && session.user.role !== "ADMIN") {
+    return { ok: false, error: "You can only boost tools you submitted." };
+  }
+
+  const config = await getStripeConfig();
+  const stripe = config.secretKey ? await getStripe() : null;
+  if (!stripe) {
+    return { ok: false, error: "Payments are not configured yet. Boosts are unavailable." };
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const checkout = await stripe.checkout.sessions.create({
+    mode: "payment",
+    customer_email: session.user.email ?? undefined,
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: config.boostPriceCents,
+          product_data: {
+            name: `AIAtlas boost for "${tool.name}"`,
+            description: `Sponsored placement at the top of the directory for ${config.boostDays} days`,
+          },
+        },
+      },
+    ],
+    metadata: { toolId: tool.id, boost: "1", days: String(config.boostDays) },
+    success_url: `${appUrl}/boost/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appUrl}/tools/${tool.slug}?boost=cancelled`,
+  });
+
+  if (checkout.url) {
+    await prisma.tool.update({ where: { id: tool.id }, data: { stripeSessionId: checkout.id } });
+    return { ok: true, checkoutUrl: checkout.url };
+  }
+  return { ok: false, error: "Could not start checkout. Try again." };
+}
+
+/** Mark a boost as paid after checkout completes (success page + webhook). */
+export async function markBoostPaidBySession(sessionId: string) {
+  const stripe = await getStripe();
+  if (!stripe || !sessionId) return { ok: false as const, error: "Payment verification unavailable." };
+  const checkout = await stripe.checkout.sessions.retrieve(sessionId);
+  if (checkout.payment_status !== "paid" || checkout.metadata?.boost !== "1" || !checkout.metadata.toolId) {
+    return { ok: false as const, error: "Payment not completed." };
+  }
+  const days = Math.min(Math.max(Number(checkout.metadata.days) || 30, 1), 365);
+  const tool = await prisma.tool.findUnique({ where: { id: checkout.metadata.toolId } });
+  if (!tool) return { ok: false as const, error: "Tool not found." };
+
+  // Stack boosts: extend from the current expiry when still boosted.
+  const base = tool.boostedUntil && tool.boostedUntil > new Date() ? tool.boostedUntil : new Date();
+  const boostedUntil = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  await prisma.tool.update({
+    where: { id: tool.id },
+    data: { boostedUntil, stripeSessionId: checkout.id },
+  });
+  revalidatePath("/tools");
+  return { ok: true as const, toolSlug: tool.slug, boostedUntil };
+}
+
+/** Admin: grant or clear a boost manually (no payment). */
+export async function adminToggleBoost(toolId: string) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
+  const tool = await prisma.tool.findUnique({ where: { id: toolId } });
+  if (!tool) return { ok: false, error: "Tool not found." };
+
+  const active = tool.boostedUntil && tool.boostedUntil > new Date();
+  const boostedUntil = active ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await prisma.tool.update({ where: { id: toolId }, data: { boostedUntil } });
+  revalidatePath("/admin");
+  revalidatePath("/tools");
+  return { ok: true };
+}
+
+/** Admin/moderator: re-run the site health check for one tool. */
+export async function checkToolHealth(toolId: string) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN" && session?.user?.role !== "MODERATOR") {
+    return { ok: false, error: "Forbidden." };
+  }
+  const tool = await prisma.tool.findUnique({ where: { id: toolId } });
+  if (!tool) return { ok: false, error: "Tool not found." };
+
+  const alive = await isSiteAlive(tool.websiteUrl);
+  await prisma.tool.update({
+    where: { id: toolId },
+    data: { isDead: !alive, lastCheckedAt: new Date() },
+  });
+  revalidatePath("/admin");
+  revalidatePath(`/tools/${tool.slug}`);
+  return { ok: true, alive };
 }
 
 /** Mark a tool as paid after checkout completes. Called by the success page and the webhook. */
@@ -273,6 +486,16 @@ export async function updateSettings(formData: FormData) {
   const priceDollars = Number(formData.get("priceDollars"));
   if (Number.isFinite(priceDollars) && priceDollars > 0) {
     entries[SETTING_KEYS.priceCents] = String(Math.round(priceDollars * 100));
+  }
+
+  const boostDollars = Number(formData.get("boostDollars"));
+  if (Number.isFinite(boostDollars) && boostDollars > 0) {
+    entries[SETTING_KEYS.boostPriceCents] = String(Math.round(boostDollars * 100));
+  }
+
+  const boostDays = Number(formData.get("boostDays"));
+  if (Number.isFinite(boostDays) && boostDays > 0) {
+    entries[SETTING_KEYS.boostDays] = String(Math.floor(boostDays));
   }
 
   const stripeMode = String(formData.get("stripeMode") ?? "");

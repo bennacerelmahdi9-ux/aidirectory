@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 export const SETTING_KEYS = {
   paymentEnabled: "submission.paymentEnabled",
   priceCents: "submission.priceCents",
+  boostPriceCents: "boost.priceCents",
+  boostDays: "boost.days",
   stripeMode: "stripe.mode",
   stripeSecretTest: "stripe.secretKeyTest",
   stripeSecretLive: "stripe.secretKeyLive",
@@ -21,6 +23,8 @@ function envDefaults(): Record<string, string> {
   return {
     [SETTING_KEYS.paymentEnabled]: process.env.SUBMISSION_PAYMENT_ENABLED === "true" ? "true" : "false",
     [SETTING_KEYS.priceCents]: process.env.STRIPE_SUBMISSION_PRICE_CENTS || "900",
+    [SETTING_KEYS.boostPriceCents]: process.env.STRIPE_BOOST_PRICE_CENTS || "2900",
+    [SETTING_KEYS.boostDays]: process.env.BOOST_DURATION_DAYS || "30",
     [SETTING_KEYS.stripeMode]: process.env.STRIPE_MODE === "live" ? "live" : "test",
     [SETTING_KEYS.stripeSecretTest]: process.env.STRIPE_SECRET_KEY_TEST || "",
     [SETTING_KEYS.stripeSecretLive]: process.env.STRIPE_SECRET_KEY_LIVE || "",

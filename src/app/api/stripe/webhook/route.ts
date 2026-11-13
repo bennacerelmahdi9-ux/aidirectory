@@ -32,10 +32,25 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const toolId = session.metadata?.toolId;
     if (toolId && session.payment_status === "paid") {
-      await prisma.tool.updateMany({
-        where: { id: toolId, status: "PENDING_PAYMENT" },
-        data: { status: "PENDING", paidAt: new Date(), stripeSessionId: session.id },
-      });
+      if (session.metadata?.boost === "1") {
+        // Paid boost: extend boostedUntil from the current expiry.
+        const days = Math.min(Math.max(Number(session.metadata.days) || 30, 1), 365);
+        const tool = await prisma.tool.findUnique({ where: { id: toolId } });
+        const base = tool?.boostedUntil && tool.boostedUntil > new Date() ? tool.boostedUntil : new Date();
+        await prisma.tool.update({
+          where: { id: toolId },
+          data: {
+            boostedUntil: new Date(base.getTime() + days * 24 * 60 * 60 * 1000),
+            stripeSessionId: session.id,
+          },
+        });
+      } else {
+        // Submission fee: move the tool into review.
+        await prisma.tool.updateMany({
+          where: { id: toolId, status: "PENDING_PAYMENT" },
+          data: { status: "PENDING", paidAt: new Date(), stripeSessionId: session.id },
+        });
+      }
     }
   }
 

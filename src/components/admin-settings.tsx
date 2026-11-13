@@ -11,6 +11,8 @@ export type AdminSettingsData = {
   isAdmin: boolean;
   paymentEnabled: boolean;
   priceDollars: string;
+  boostDollars: string;
+  boostDays: string;
   stripeMode: "test" | "live";
   stripeSecretTest: string;
   stripeSecretLive: string;
@@ -70,6 +72,30 @@ export function AdminSettings({ data }: { data: AdminSettingsData }) {
               className={field + " w-32"}
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="boostDollars">Boost price (USD)</Label>
+            <Input
+              id="boostDollars"
+              name="boostDollars"
+              type="number"
+              min="0.5"
+              step="0.5"
+              defaultValue={data.boostDollars}
+              className={field + " w-32"}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="boostDays">Boost duration (days)</Label>
+            <Input
+              id="boostDays"
+              name="boostDays"
+              type="number"
+              min="1"
+              step="1"
+              defaultValue={data.boostDays}
+              className={field + " w-32"}
+            />
+          </div>
           <label className="flex items-center gap-2 pb-2 text-sm">
             <input type="checkbox" name="paymentEnabled" defaultChecked={data.paymentEnabled} className="accent-[var(--primary)]" />
             Require payment to submit
@@ -77,6 +103,7 @@ export function AdminSettings({ data }: { data: AdminSettingsData }) {
         </div>
         <p className="text-xs text-muted-foreground">
           Status: payments {data.paymentEnabled ? "on" : "off"} — Stripe {data.stripeConfigured ? "configured" : "not configured"}.
+          Boosts give sponsored placement at the top of /tools for the configured duration.
         </p>
       </section>
 

@@ -1,10 +1,12 @@
 import { ToolCard } from "@/components/tool-card";
+import { AiSearchBar } from "@/components/ai-search-bar";
 import { getTools, getCategories } from "@/lib/queries";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRICING_LABELS } from "@/lib/constants";
+import { Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
@@ -18,6 +20,7 @@ type SearchParams = Promise<{
   openSource?: string;
   sort?: string;
   page?: string;
+  ai?: string;
 }>;
 
 export default async function ToolsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -34,6 +37,19 @@ export default async function ToolsPage({ searchParams }: { searchParams: Search
 
   const [result, categories] = await Promise.all([getTools(filters), getCategories()]);
 
+  // "AI understood" chips: derived from the URL params the AI search produced.
+  const aiQuery = sp.ai;
+  const aiChips: string[] = [];
+  if (aiQuery) {
+    if (sp.category) {
+      const cat = categories.find((c) => c.slug === sp.category);
+      if (cat) aiChips.push(`Category: ${cat.name}`);
+    }
+    if (sp.pricing) aiChips.push(`Pricing: ${(PRICING_LABELS as Record<string, string>)[sp.pricing] ?? sp.pricing.toLowerCase()}`);
+    if (sp.free === "1") aiChips.push("Has a free plan");
+    if (sp.openSource === "1") aiChips.push("Open source");
+  }
+
   const buildUrl = (overrides: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
     const merged = { ...sp, ...overrides };
@@ -46,6 +62,27 @@ export default async function ToolsPage({ searchParams }: { searchParams: Search
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">AI Tools Directory</h1>
+
+      <AiSearchBar />
+
+      {aiQuery && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-4 py-2.5">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Sparkles className="h-3.5 w-3.5" /> AI understood:
+          </span>
+          <span className="text-sm">“{aiQuery}”</span>
+          {aiChips.map((chip) => (
+            <Badge key={chip} variant="secondary" className="text-xs">{chip}</Badge>
+          ))}
+          <Link
+            href={buildUrl({ ai: undefined, q: sp.q })}
+            className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            aria-label="Clear AI search context"
+          >
+            <X className="h-3.5 w-3.5" /> Clear
+          </Link>
+        </div>
+      )}
 
       {/* Search + filters */}
       <form action="/tools" className="mb-6 flex flex-wrap items-center gap-2">

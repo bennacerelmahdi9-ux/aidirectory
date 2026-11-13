@@ -33,16 +33,51 @@ export async function getTools(filters: ToolFilters = {}) {
   else if (sort === "updated") orderBy = { updatedAt: "desc" };
   else if (sort === "name") orderBy = { name: "asc" };
 
-  const [items, total] = await Promise.all([
-    prisma.tool.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: { category: true, _count: { select: { reviews: true } } },
-    }),
-    prisma.tool.count({ where }),
+  // Paid boosts (boostedUntil in the future) always rank first.
+  const now = new Date();
+  const boostedWhere = { ...where, boostedUntil: { gt: now } };
+  const normalWhere = {
+    ...where,
+    AND: [{ OR: [{ boostedUntil: null as Date | null }, { boostedUntil: { lte: now } }] }],
+  };
+
+  const [boostedTotal, normalTotal] = await Promise.all([
+    prisma.tool.count({ where: boostedWhere }),
+    prisma.tool.count({ where: normalWhere }),
   ]);
+  const total = boostedTotal + normalTotal;
+
+  const include = { category: true, _count: { select: { reviews: true } } } as const;
+  const skip = (page - 1) * pageSize;
+
+  // Slice across the merged [boosted..., normal...] list.
+  const boostSkip = Math.min(skip, boostedTotal);
+  const boostTake = Math.max(0, Math.min(pageSize, boostedTotal - skip));
+  const normalSkip = Math.max(0, skip - boostedTotal);
+  const normalTake = pageSize - boostTake;
+
+  const [boostedItems, normalItems] = await Promise.all([
+    boostTake > 0
+      ? prisma.tool.findMany({
+          where: boostedWhere,
+          orderBy: [{ boostedUntil: "desc" as const }],
+          skip: boostSkip,
+          take: boostTake,
+          include,
+        })
+      : Promise.resolve([]),
+    normalTake > 0
+      ? prisma.tool.findMany({
+          where: normalWhere,
+          orderBy,
+          skip: normalSkip,
+          take: normalTake,
+          include,
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const items = [...boostedItems, ...normalItems];
 
   return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
