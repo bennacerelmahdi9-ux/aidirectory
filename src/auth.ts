@@ -7,6 +7,9 @@ import bcrypt from "bcryptjs";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  // Self-hosted deployments proxy through a web server; trust the host header.
+  // (Without this, production standalone throws UntrustedHost on every auth route.)
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
