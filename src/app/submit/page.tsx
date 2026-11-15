@@ -19,7 +19,7 @@ export default async function SubmitPage() {
           </p>
           <div className="mt-10">
             <SubmitForm
-              categories={categories.map((c: any) => ({ id: c.id, name: c.name, slug: c.slug }))}
+              categories={categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug }))}
               paymentEnabled={paid}
               priceCents={config.priceCents}
             />

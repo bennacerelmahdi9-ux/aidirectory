@@ -41,7 +41,7 @@ export function AiCompare({ ids }: { ids: string }) {
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" /> AI-generated comparison
             </span>
-            <span className="text-[10px] text-muted-foreground">May contain mistakes — verify on the tools' sites</span>
+            <span className="text-[10px] text-muted-foreground">May contain mistakes — verify on the tools&apos; sites</span>
           </div>
           <div className="space-y-3 text-sm leading-relaxed">
             {text

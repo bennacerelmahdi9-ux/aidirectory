@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cacheGet, cacheSet } from "@/lib/redis";
+import type { Prisma } from "@prisma/client";
 
 export type ToolFilters = {
   q?: string;
@@ -93,9 +94,14 @@ export async function getToolBySlug(slug: string) {
   });
 }
 
+/** Category as returned by getCategories — includes the count of approved tools. */
+export type CategoryWithToolCount = Prisma.CategoryGetPayload<{
+  include: { _count: { select: { tools: { where: { status: "APPROVED" } } } } };
+}>;
+
 export async function getCategories() {
   const cached = await cacheGet("categories");
-  if (cached) return JSON.parse(cached) as Awaited<ReturnType<typeof prisma.category.findMany>>;
+  if (cached) return JSON.parse(cached) as CategoryWithToolCount[];
   const cats = await prisma.category.findMany({ orderBy: { order: "asc" }, include: { _count: { select: { tools: { where: { status: "APPROVED" } } } } } });
   await cacheSet("categories", JSON.stringify(cats), 300);
   return cats;

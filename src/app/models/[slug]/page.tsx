@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getModelBySlug } from "@/lib/queries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import type { Metadata } from "next";
 
 type Params = Promise<{ slug: string }>;

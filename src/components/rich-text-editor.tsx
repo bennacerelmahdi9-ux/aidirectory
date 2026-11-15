@@ -49,7 +49,6 @@ export function RichTextEditor({ name, value, onChange, ariaLabel = "Description
     if (incoming !== current && !editor.isFocused) {
       editor.commands.setContent(incoming || "", { emitUpdate: false });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
   const btn = (

@@ -4,7 +4,6 @@ import { getTools, getCategories } from "@/lib/queries";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRICING_LABELS } from "@/lib/constants";
 import { Sparkles, X } from "lucide-react";
 import Link from "next/link";
@@ -92,7 +91,7 @@ export default async function ToolsPage({ searchParams }: { searchParams: Search
         </div>
         <select name="category" defaultValue={sp.category ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
           <option value="">All categories</option>
-          {categories.map((c: any) => (
+          {categories.map((c) => (
             <option key={c.slug} value={c.slug}>{c.name}</option>
           ))}
         </select>

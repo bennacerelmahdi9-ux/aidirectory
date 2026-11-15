@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { getToolBySlug, incrementView } from "@/lib/queries";
-import { PRICING_LABELS, PLATFORMS } from "@/lib/constants";
+import { PRICING_LABELS } from "@/lib/constants";
 import { getStripeConfig } from "@/lib/stripe";
 import { auth } from "@/auth";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { BookmarkButton } from "@/components/bookmark-button";

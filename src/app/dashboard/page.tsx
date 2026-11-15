@@ -4,7 +4,6 @@ import { getBookmarksByUser } from "@/lib/queries";
 import { ToolCard } from "@/components/tool-card";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { ShieldCheck, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 

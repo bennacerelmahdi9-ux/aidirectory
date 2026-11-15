@@ -6,7 +6,7 @@
  * 4. Verify /api/media/<id> serves the right content type.
  */
 import puppeteer from "puppeteer-core";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";

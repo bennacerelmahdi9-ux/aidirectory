@@ -6,7 +6,7 @@ import { Bookmark } from "lucide-react";
 import { toggleBookmark } from "@/app/actions";
 import { toast } from "sonner";
 
-export function BookmarkButton({ toolId, toolSlug }: { toolId: string; toolSlug: string }) {
+export function BookmarkButton({ toolId }: { toolId: string; toolSlug: string }) {
   const [pending, setPending] = useState(false);
 
   async function onClick() {

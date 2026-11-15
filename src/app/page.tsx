@@ -46,7 +46,7 @@ export default async function HomePage() {
             <Button type="submit" size="lg" className="h-14 rounded-xl px-8">Search</Button>
           </form>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {categories.slice(0, 6).map((c: any) => (
+            {categories.slice(0, 6).map((c) => (
               <Link key={c.slug} href={`/tools?category=${c.slug}`}>
                 <Badge variant="secondary" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
                   {c.name}
@@ -66,7 +66,7 @@ export default async function HomePage() {
       <section className="container mx-auto px-4 py-12">
         <h2 className="text-2xl font-bold mb-6">Popular categories</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {categories.map((c: any) => (
+          {categories.map((c) => (
             <Link
               key={c.slug}
               href={`/tools?category=${c.slug}`}

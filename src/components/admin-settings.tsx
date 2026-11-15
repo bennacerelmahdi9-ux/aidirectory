@@ -154,7 +154,7 @@ export function AdminSettings({ data }: { data: AdminSettingsData }) {
         <div>
           <h3 className="font-semibold tracking-tight">AI generation (OpenRouter)</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Powers the "Generate using AI" button on the submit form.{" "}
+            Powers the &quot;Generate using AI&quot; button on the submit form.{" "}
             {data.aiConfigured ? "Configured." : "Not configured yet."}
           </p>
         </div>

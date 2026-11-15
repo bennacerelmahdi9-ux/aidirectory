@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Wrench,
@@ -10,27 +9,33 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
-  Settings,
   CreditCard,
   ExternalLink,
-  ChevronRight,
   Menu,
   X,
   Search,
   CheckCircle2,
   Clock,
-  Trash2,
   Plus,
   Shield,
   KeyRound,
-  Eye,
-  TrendingUp,
+  type LucideIcon,
 } from "lucide-react";
+import type { Prisma } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AdminSettings, BrandingSettings } from "@/components/admin-settings";
+import { AdminSettings, BrandingSettings, type AdminSettingsData } from "@/components/admin-settings";
+
+type AdminTool = Prisma.ToolGetPayload<{ include: { category: true } }>;
+type AdminUser = Prisma.UserGetPayload<Record<string, never>>;
+type AdminReview = Prisma.ReviewGetPayload<{ include: { user: true; tool: true } }>;
+type AdminReport = Prisma.ReportGetPayload<{ include: { tool: true; user: true } }>;
+type AdminCategory = Prisma.CategoryGetPayload<{ include: { _count: { select: { tools: true } } } }>;
+
+/** Common shape of the admin server-action results. */
+type ActionResult = { ok?: boolean; error?: string };
 
 type AdminClientViewProps = {
   isAdmin: boolean;
@@ -38,11 +43,11 @@ type AdminClientViewProps = {
   userName: string | null;
   userEmail: string;
   userId: string;
-  tools: any[];
-  users: any[];
-  reviews: any[];
-  reports: any[];
-  categories: any[];
+  tools: AdminTool[];
+  users: AdminUser[];
+  reviews: AdminReview[];
+  reports: AdminReport[];
+  categories: AdminCategory[];
   paidCount: number;
   stripe: {
     enabled: boolean;
@@ -50,17 +55,17 @@ type AdminClientViewProps = {
     priceCents: number;
     secretKey?: string | null;
   };
-  settingsData: any;
-  approveToolAction: (id: string) => Promise<any>;
-  rejectToolAction: (id: string) => Promise<any>;
-  toggleFeaturedAction: (id: string) => Promise<any>;
-  deleteToolAction: (id: string) => Promise<any>;
-  updateUserRoleAction: (id: string, role: "USER" | "MODERATOR" | "ADMIN") => Promise<any>;
-  deleteUserAction: (id: string) => Promise<any>;
-  createCategoryAction: (formData: FormData) => Promise<any>;
-  deleteCategoryAction: (id: string) => Promise<any>;
-  adminToggleBoostAction: (id: string) => Promise<any>;
-  checkToolHealthAction: (id: string) => Promise<any>;
+  settingsData: AdminSettingsData;
+  approveToolAction: (id: string) => Promise<ActionResult>;
+  rejectToolAction: (id: string) => Promise<ActionResult>;
+  toggleFeaturedAction: (id: string) => Promise<ActionResult>;
+  deleteToolAction: (id: string) => Promise<ActionResult>;
+  updateUserRoleAction: (id: string, role: "USER" | "MODERATOR" | "ADMIN") => Promise<ActionResult>;
+  deleteUserAction: (id: string) => Promise<ActionResult>;
+  createCategoryAction: (formData: FormData) => Promise<ActionResult>;
+  deleteCategoryAction: (id: string) => Promise<ActionResult>;
+  adminToggleBoostAction: (id: string) => Promise<ActionResult>;
+  checkToolHealthAction: (id: string) => Promise<ActionResult>;
 };
 
 export function AdminClientView({
@@ -106,7 +111,7 @@ export function AdminClientView({
   type NavItem = {
     id: "overview" | "tools" | "categories" | "users" | "reviews" | "reports" | "settings";
     label: string;
-    icon: any;
+    icon: LucideIcon;
     badge?: number;
     count?: number;
   };
@@ -207,7 +212,7 @@ export function AdminClientView({
               <button
                 key={item.id}
                 onClick={() => {
-                  setActiveTab(item.id as any);
+                  setActiveTab(item.id);
                   setMobileMenuOpen(false);
                 }}
                 className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${

@@ -1,7 +1,5 @@
 import { getTools, getToolBySlug } from "@/lib/queries";
 import { AiCompare } from "@/components/ai-compare";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PRICING_LABELS } from "@/lib/constants";
 import Link from "next/link";
 

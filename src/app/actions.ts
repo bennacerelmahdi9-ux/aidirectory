@@ -4,7 +4,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { fetchFavicon } from "@/lib/favicon";
 import { generateToolDraft as aiGenerateToolDraft, parseNaturalLanguageQuery, compareToolsWithAI } from "@/lib/ai";
