@@ -16,6 +16,71 @@ import { headers } from "next/headers";
 import DOMPurify from "isomorphic-dompurify";
 import { stripHtml, looksLikeHtml } from "@/lib/utils";
 
+/* ---------------------------------------------------------------- */
+/* Branding uploads (logo, favicon, OpenGraph image)                  */
+/* ---------------------------------------------------------------- */
+
+const BRANDING_KEYS: Record<string, string> = {
+  logo: SETTING_KEYS.brandingLogo,
+  favicon: SETTING_KEYS.brandingFavicon,
+  ogImage: SETTING_KEYS.brandingOgImage,
+};
+
+// Raster formats only — SVG would allow script injection when served same-origin.
+const ALLOWED_IMAGE_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
+]);
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+/** Admin: upload a branding image (stored in Media, served from /api/media/[id]). */
+export async function uploadBrandingImage(formData: FormData) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
+
+  const kind = String(formData.get("kind") ?? "");
+  const settingKey = BRANDING_KEYS[kind];
+  if (!settingKey) return { ok: false, error: "Unknown image type." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Choose a file first." };
+  }
+  if (!ALLOWED_IMAGE_MIME.has(file.type)) {
+    return { ok: false, error: "Unsupported format — use PNG, JPEG, WebP, or ICO." };
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { ok: false, error: "File too large (max 4 MB)." };
+  }
+
+  const data = Buffer.from(await file.arrayBuffer());
+  const media = await prisma.media.create({
+    data: { kind, mimeType: file.type, size: data.byteLength, data },
+  });
+  await setSettings({ [settingKey]: media.id });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
+  return { ok: true as const, mediaId: media.id };
+}
+
+/** Admin: clear a branding image (revert to the default). */
+export async function resetBrandingImage(kind: string) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { ok: false, error: "Forbidden." };
+
+  const settingKey = BRANDING_KEYS[kind];
+  if (!settingKey) return { ok: false, error: "Unknown image type." };
+
+  await setSettings({ [settingKey]: "" });
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 /** Rate-limit key for the current caller: user id when logged in, else IP. */
 async function callerKey(prefix: string): Promise<string> {
   const session = await auth();

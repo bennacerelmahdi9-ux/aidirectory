@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateSettings } from "@/app/actions";
+import { updateSettings, uploadBrandingImage, resetBrandingImage } from "@/app/actions";
 import { toast } from "sonner";
 
 export type AdminSettingsData = {
@@ -14,6 +14,10 @@ export type AdminSettingsData = {
   boostDollars: string;
   boostDays: string;
   stripeMode: "test" | "live";
+  /** Media ids for branding assets (null = default in use). */
+  logoId: string | null;
+  faviconId: string | null;
+  ogImageId: string | null;
   stripeSecretTest: string;
   stripeSecretLive: string;
   stripeWebhookTest: string;
@@ -170,5 +174,145 @@ export function AdminSettings({ data }: { data: AdminSettingsData }) {
         {pending ? "Saving..." : "Save settings"}
       </Button>
     </form>
+  );
+}
+
+/** One branding image: preview + upload + clear. Own <form> — not nested in the settings form. */
+function BrandingUploader({
+  kind,
+  label,
+  hint,
+  mediaId,
+  accept,
+}: {
+  kind: string;
+  label: string;
+  hint: string;
+  mediaId: string | null;
+  accept: string;
+}) {
+  const [current, setCurrent] = useState<string | null>(mediaId);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onUpload(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    const file = fd.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      setError("Choose a file first.");
+      return;
+    }
+    setBusy(true);
+    const res = await uploadBrandingImage(fd).catch(() => ({ ok: false as const, error: "Upload failed." }));
+    setBusy(false);
+    if (res.ok) {
+      setCurrent(res.mediaId ?? null);
+      (e.target as HTMLFormElement).reset();
+      toast.success(`${label} updated.`);
+    } else {
+      setError(("error" in res && res.error) || "Upload failed.");
+    }
+  }
+
+  async function onClear() {
+    setError(null);
+    setBusy(true);
+    const res = await resetBrandingImage(kind).catch(() => ({ ok: false as const, error: "Failed." }));
+    setBusy(false);
+    if (res.ok) {
+      setCurrent(null);
+      toast.success(`${label} reset to default.`);
+    } else {
+      setError(("error" in res && res.error) || "Failed.");
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border p-4">
+      <div>
+        <h4 className="text-sm font-semibold">{label}</h4>
+        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+      </div>
+      <div className="flex items-center gap-4">
+        {current ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/media/${current}`}
+            alt={label}
+            className="h-16 w-16 rounded-lg border bg-card object-contain p-1"
+          />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
+            Default
+          </div>
+        )}
+        <form onSubmit={onUpload} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="kind" value={kind} />
+          <input
+            type="file"
+            name="file"
+            accept={accept}
+            className="max-w-52 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+          />
+          <Button type="submit" size="sm" variant="outline" disabled={busy}>
+            {busy ? "..." : "Upload"}
+          </Button>
+          {current && (
+            <Button type="button" size="sm" variant="ghost" onClick={onClear} disabled={busy}>
+              Clear
+            </Button>
+          )}
+        </form>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Branding section — rendered outside the settings form. */
+export function BrandingSettings({
+  logoId,
+  faviconId,
+  ogImageId,
+}: {
+  logoId: string | null;
+  faviconId: string | null;
+  ogImageId: string | null;
+}) {
+  return (
+    <div className="mt-8 space-y-4 rounded-xl border p-6">
+      <div>
+        <h3 className="font-semibold tracking-tight">Branding</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Site logo, favicon, and social share image. PNG, JPEG, WebP, or ICO — max 4 MB.
+          Changes apply site-wide immediately.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <BrandingUploader
+          kind="logo"
+          label="Logo"
+          hint="Shown in the header next to the site name. Square works best."
+          mediaId={logoId}
+          accept="image/png,image/jpeg,image/webp"
+        />
+        <BrandingUploader
+          kind="favicon"
+          label="Favicon"
+          hint="Browser tab icon. Use a square .png or .ico (32×32+)."
+          mediaId={faviconId}
+          accept="image/png,image/x-icon,image/vnd.microsoft.icon"
+        />
+        <BrandingUploader
+          kind="ogImage"
+          label="OpenGraph image"
+          hint="Preview when the site is shared on social media. 1200×630 recommended."
+          mediaId={ogImageId}
+          accept="image/png,image/jpeg,image/webp"
+        />
+      </div>
+    </div>
   );
 }

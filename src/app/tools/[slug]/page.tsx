@@ -12,6 +12,7 @@ import { BoostButton } from "@/components/boost-button";
 import { ReviewForm } from "@/components/review-form";
 import { Star } from "lucide-react";
 import { looksLikeHtml } from "@/lib/utils";
+import { brandingMetadata } from "@/lib/branding";
 import type { Metadata } from "next";
 
 type Params = Promise<{ slug: string }>;
@@ -20,6 +21,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { slug } = await params;
   const tool = await getToolBySlug(slug);
   if (!tool) return {};
+  const branding = await brandingMetadata();
   return {
     title: tool.name,
     description: tool.description,
@@ -27,6 +29,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       title: tool.name,
       description: tool.description,
       url: `/tools/${tool.slug}`,
+      images: branding.openGraphImages,
     },
   };
 }

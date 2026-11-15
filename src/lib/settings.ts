@@ -16,6 +16,9 @@ export const SETTING_KEYS = {
   stripeWebhookLive: "stripe.webhookSecretLive",
   openrouterApiKey: "openrouter.apiKey",
   openrouterModel: "openrouter.model",
+  brandingLogo: "branding.logo",
+  brandingFavicon: "branding.favicon",
+  brandingOgImage: "branding.ogImage",
 } as const;
 
 /** Env-based defaults, overridable from the admin panel. */
@@ -32,6 +35,9 @@ function envDefaults(): Record<string, string> {
     [SETTING_KEYS.stripeWebhookLive]: process.env.STRIPE_WEBHOOK_SECRET_LIVE || "",
     [SETTING_KEYS.openrouterApiKey]: process.env.OPENROUTER_API_KEY || "",
     [SETTING_KEYS.openrouterModel]: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
+    [SETTING_KEYS.brandingLogo]: "",
+    [SETTING_KEYS.brandingFavicon]: "",
+    [SETTING_KEYS.brandingOgImage]: "",
   };
 }
 

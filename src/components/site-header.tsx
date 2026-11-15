@@ -15,7 +15,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { usePathname } from "next/navigation";
 
-export function SiteHeader() {
+export function SiteHeader({ logoId }: { logoId?: string | null }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
@@ -29,9 +29,14 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur">
       <div className="container mx-auto flex h-16 items-center gap-4 px-4">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            A
-          </span>
+          {logoId ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/media/${logoId}`} alt="AIAtlas logo" className="h-8 w-8 rounded-lg object-contain" />
+          ) : (
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              A
+            </span>
+          )}
           AIAtlas
         </Link>
 

@@ -234,3 +234,17 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/**
+ * Uploaded branding assets (logo, favicon, OpenGraph image).
+ * Stored as bytes so uploads work on any deployment; served from
+ * /api/media/[id] with immutable caching (the id changes on re-upload).
+ */
+model Media {
+  id        String   @id @default(cuid())
+  kind      String // logo | favicon | ogImage
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+}

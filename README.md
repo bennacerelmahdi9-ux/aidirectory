@@ -17,6 +17,7 @@ AIAtlas is an open-source directory and discovery platform for AI tools, models,
 - **Developer resources** (APIs, SDKs, repos, datasets, docs, tutorials)
 - **Community accounts**, submissions, reviews, bookmarks, reports
 - **Full admin panel** — dashboard, moderation queue, user management, categories, reviews, reports, and settings for pricing/Stripe keys/OpenRouter
+- **Custom branding from the admin panel** — upload the site logo, favicon, and OpenGraph image (stored in the DB, live site-wide immediately, no redeploy)
 - **SEO**: dynamic metadata, sitemap, robots.txt
 - **Light/dark mode**, responsive UI
 

@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AdminSettings } from "@/components/admin-settings";
+import { AdminSettings, BrandingSettings } from "@/components/admin-settings";
 
 type AdminClientViewProps = {
   isAdmin: boolean;
@@ -865,6 +865,13 @@ export function AdminClientView({
             <div className="max-w-4xl space-y-6">
               <div className="rounded-xl border bg-card p-6 shadow-sm">
                 <AdminSettings data={settingsData} />
+              </div>
+              <div className="rounded-xl border bg-card p-6 shadow-sm">
+                <BrandingSettings
+                  logoId={settingsData.logoId ?? null}
+                  faviconId={settingsData.faviconId ?? null}
+                  ogImageId={settingsData.ogImageId ?? null}
+                />
               </div>
             </div>
           )}

@@ -64,6 +64,9 @@ export default async function AdminPage() {
     stripeWebhookLive: maskSecret(settings[SETTING_KEYS.stripeWebhookLive]),
     openrouterApiKey: maskSecret(settings[SETTING_KEYS.openrouterApiKey]),
     openrouterModel: settings[SETTING_KEYS.openrouterModel],
+    logoId: settings[SETTING_KEYS.brandingLogo] || null,
+    faviconId: settings[SETTING_KEYS.brandingFavicon] || null,
+    ogImageId: settings[SETTING_KEYS.brandingOgImage] || null,
     stripeConfigured: !!stripe.secretKey,
     aiConfigured: !!settings[SETTING_KEYS.openrouterApiKey],
   };
